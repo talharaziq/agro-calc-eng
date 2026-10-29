@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://agrocalculator.pp.ua/sitemap.xml
