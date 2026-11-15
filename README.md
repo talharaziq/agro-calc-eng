@@ -1,39 +1,59 @@
-# Agriculture Calculator — Static Website
+# Розрахуй — українські онлайн-калькулятори
 
-This folder is the full static website for Agriculture Calculator, aimed at a US farming audience. It contains **137 distinct calculator pages** across 11 categories, five long-form farm guides, the blog index, a searchable full calculator directory, homepage FAQs, and standard information pages.
+Статичний сайт із 100 калькуляторами українською мовою. Усі обчислення виконуються у браузері. Серверної частини та сторонніх JavaScript-залежностей немає.
 
-## Deploy
+## Cloudflare Pages + GitHub
 
-1. Extract the ZIP. Upload the **contents of this folder** (so `index.html` and `assets/` are at the repository root) to a GitHub repository.
-2. For GitHub Pages, enable Pages for the branch/folder containing `index.html`. For Cloudflare Pages, connect the repository and choose a static site. Set **no build command** and use the repository root as the output directory.
-3. Open the published site and test mobile navigation, directory search, category filters, calculator calculations, and the contact form.
-4. Replace site domain references if you later add canonical tags, share previews, analytics, advertising, or a sitemap. As requested, this package intentionally does **not** include `sitemap.xml` or `robots.txt`.
+**Важливо:** вміст цього проєкту має лежати безпосередньо в корені GitHub-репозиторію. Після розпакування у корені мають бути `package.json`, `build.mjs`, `src/`, `public/` і `dist/`. Не завантажуйте цю теку всередині додаткової теки `ua-calculators`.
 
-## Technical notes
+Налаштуйте Cloudflare Pages:
 
-- Plain HTML, CSS, and browser-side JavaScript; no framework, package manager, backend, or build process.
-- The full calculator directory is emitted as static HTML. Search and category filtering enhance the page in the browser and do not require an API.
-- All calculator computations run locally in the browser. The calculator form values are not sent to our server.
-- Pages use US customary units where applicable (acres, pounds, US gallons, inches, bushels, MPH, US short tons, and dollars). Conversion pages state their conversion factor.
-- Each calculator has its own title, description, formula, instructions, related-tool links, and 13 FAQs with FAQ structured data. Structured data does not guarantee a rich result or higher rank.
-- DM Sans is loaded from Google Fonts. To eliminate the external font request, remove the Google Fonts `preconnect`/`stylesheet` lines from HTML or replace the font-family with a system stack.
+- Framework preset: `None`
+- Production branch: `main` (або ваша основна гілка)
+- Root directory: залиште порожнім / стандартним (`/`)
+- Build command: `npm run build`
+- Build output directory: `dist`
 
-## Contact form setup — important
+Додайте змінну середовища `SITE_URL` для Production (і Preview, якщо потрібно), наприклад `https://your-domain.com`. Замініть адресу на власний домен без `/` у кінці. Після цього запустіть повторне розгортання.
 
-`contact.html` submits to FormSubmit using the configured destination `talharaziq@outlook.com`. FormSubmit may email an activation request after the first live submission. Confirm that activation email, submit a real test message from the deployed domain, and confirm arrival in the Outlook inbox (including Junk). Delivery has not been verified from this environment. If you want a thank-you redirect after submission, set FormSubmit's `_next` field to your final absolute deployed URL after the domain is known.
+Файл `.node-version` фіксує Node.js 22 для збірки. Зовнішні npm-пакети проєкту не потрібні.
 
-## Research approach and SEO
+## Локальний запуск
 
-The page architecture was informed by category-level review of five broad directories: AgroRates, FarmCalcs, AgriConverter, FarmMaths, and ToolFoundry. Selected formulas and category notes reference University of Minnesota Extension, Iowa State University Extension, Colorado State University Extension, Utah State University Extension, USDA NRCS, and NIST. The research page describes what each source informed and links directly to sources. This is **not** an exhaustive URL-by-URL audit of every competitor calculator, and no private keyword-volume data is represented as fact.
+Потрібен Node.js 22 або новіший.
 
-Each page aims to satisfy the calculator intent directly: title/meta, unique summary, exact input units, formula, instructions, limits, related pages, and calculator-specific FAQs. Keyword density is not a ranking guarantee; keep the language useful and natural. After launch, use Search Console queries and actual user feedback to identify pages that merit more crop-specific examples, citations, or additional unique content.
+```bash
+npm run build
+npm run serve
+```
 
-## Useful files
+Після запуску відкрийте `http://localhost:4173/`.
 
-- `LAUNCH-CHECKLIST.md` — final deployment checks.
-- `references.html` — competitor and reference review.
-- `editorial-policy.html` — formula and correction policy.
-- `contact.html` — contact form.
-- `privacy-policy.html`, `terms-of-use.html`, `disclaimer.html`, `about.html` — informational and trust pages.
+## Структура
 
-No rankings or AdSense approval are guaranteed. Helpful original content, accurate functionality, clear ownership and privacy disclosures, and policy compliance should be reviewed before applying to an ad network.
+- `package.json` — команди збірки та локального перегляду.
+- `src/catalog.json` — категорії, 100 калькуляторів, назви, ключові фрази, SEO title/description, формули, приклади, поля та FAQ.
+- `public/app.js` — логіка розрахунків і пошук у каталозі.
+- `public/site.css` — адаптивний дизайн.
+- `build.mjs` — генерація статичних HTML-сторінок та SEO-метаданих.
+- `dist/` — згенерований сайт для публікації.
+- `make_catalog.py` — скрипт, яким створювався початковий каталог.
+
+## SEO
+
+Кожна сторінка калькулятора має окремі українські `title`, `meta description`, основний запит, H1, вступ, формулу, приклад, інструкцію, FAQ та внутрішні посилання на суміжні інструменти. HTML-сторінки генеруються заздалегідь, тому основний текст і посилання доступні пошуковим роботам без виконання JavaScript.
+
+На сторінках калькуляторів розміщено структуровані дані `SoftwareApplication` і `FAQPage`; для сторінок із доменом додається `BreadcrumbList`. Для головної, категорій та службових сторінок також створюються окремі title і description.
+
+## Додавання калькулятора
+
+1. Додайте запис до масиву `calculators` у `src/catalog.json`. Вкажіть унікальний `slug`, `type`, українську назву, категорію, поля, формулу, приклад, FAQ та SEO-текст.
+2. Реалізуйте відповідний `type` у `public/app.js` — у секції обробки калькуляторів.
+3. Запустіть `npm run build` і перевірте нову сторінку в `dist/calculators/<slug>/`.
+
+## Важливі обмеження
+
+- У каталозі немає підключення до живих курсів валют. Курс вводить відвідувач.
+- Ставки та тарифи, які можна змінювати у формі, потрібно перевіряти перед використанням. Це стосується податків, банківських пропозицій, електроенергії та інших регульованих значень.
+- Калькулятори здоров'я дають довідкові оцінки, а не медичні висновки.
+- Сайт не містить аналітики, рекламних скриптів або форми облікового запису. Значення калькуляторів обробляються на пристрої відвідувача.

@@ -1,0 +1,16 @@
+{
+  "name": "Розрахуй — онлайн-калькулятори українською",
+  "short_name": "Розрахуй",
+  "lang": "uk",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f8f5",
+  "theme_color": "#176b54",
+  "icons": [
+    {
+      "src": "/assets/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
