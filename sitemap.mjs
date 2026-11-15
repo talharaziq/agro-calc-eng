@@ -1,10 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { SITE_URL as CONFIGURED_SITE_URL } from './site.config.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.join(ROOT, 'dist');
-const SITE_URL = 'https://agrocalculator.pp.ua';
+const SITE_URL = new URL(CONFIGURED_SITE_URL).origin;
 
 if (!fs.existsSync(DIST) || !fs.statSync(DIST).isDirectory()) {
   throw new Error('Build output directory "dist" was not found. Run the site build first.');
@@ -39,25 +40,44 @@ function isNoIndex(html) {
   );
 }
 
-function pagePath(html, relativePath) {
+function canonicalPath(html, relativePath) {
   const linkTags = html.match(/<link\b[^>]*>/gi) ?? [];
   const canonicalTag = linkTags.find(tag => /\brel=["']canonical["']/i.test(tag));
   const canonicalHref = canonicalTag?.match(/\bhref=["']([^"']+)["']/i)?.[1];
 
-  let pathname = fallbackPath(relativePath);
-  if (canonicalHref) {
-    try {
-      // Keep the canonical path, but always publish it on the site's real domain.
-      pathname = new URL(canonicalHref, SITE_URL).pathname;
-    } catch {
-      // Fall back to the generated file path if the canonical value is malformed.
-    }
+  if (!canonicalHref) return fallbackPath(relativePath);
+
+  try {
+    return new URL(canonicalHref, `${SITE_URL}/`).pathname;
+  } catch {
+    return fallbackPath(relativePath);
+  }
+}
+
+function normalizeCanonical(html, pathname) {
+  const canonicalUrl = `${SITE_URL}${pathname}`;
+  const linkTags = html.match(/<link\b[^>]*>/gi) ?? [];
+  const canonicalTag = linkTags.find(tag => /\brel=["']canonical["']/i.test(tag));
+
+  if (canonicalTag) {
+    const fixedTag = /\bhref=["'][^"']*["']/i.test(canonicalTag)
+      ? canonicalTag.replace(/\bhref=["'][^"']*["']/i, `href="${canonicalUrl}"`)
+      : canonicalTag.replace(/>$/, ` href="${canonicalUrl}">`);
+    html = html.replace(canonicalTag, fixedTag);
+  } else if (/<\/head>/i.test(html)) {
+    html = html.replace(/<\/head>/i, `<link rel="canonical" href="${canonicalUrl}"></head>`);
   }
 
-  pathname = pathname.replace(/\/{2,}/g, '/');
-  if (!pathname.startsWith('/')) pathname = `/${pathname}`;
-  if (/^\/404(?:\.html|\/)?$/i.test(pathname)) return null;
-  return pathname;
+  const ogUrlPattern = /<meta\b[^>]*property=["']og:url["'][^>]*>/i;
+  const ogUrlTag = html.match(ogUrlPattern)?.[0];
+  if (ogUrlTag) {
+    const fixedOgTag = /\bcontent=["'][^"']*["']/i.test(ogUrlTag)
+      ? ogUrlTag.replace(/\bcontent=["'][^"']*["']/i, `content="${canonicalUrl}"`)
+      : ogUrlTag.replace(/>$/, ` content="${canonicalUrl}">`);
+    html = html.replace(ogUrlTag, fixedOgTag);
+  }
+
+  return html;
 }
 
 function xmlEscape(value) {
@@ -72,12 +92,16 @@ function xmlEscape(value) {
 const urls = new Set();
 for (const filePath of listHtmlFiles(DIST)) {
   const relativePath = path.relative(DIST, filePath);
-  const html = fs.readFileSync(filePath, 'utf8');
+  let html = fs.readFileSync(filePath, 'utf8');
 
   if (isNoIndex(html)) continue;
-  const pathname = pagePath(html, relativePath);
-  if (!pathname) continue;
 
+  let pathname = canonicalPath(html, relativePath).replace(/\/{2,}/g, '/');
+  if (!pathname.startsWith('/')) pathname = `/${pathname}`;
+  if (/^\/404(?:\.html|\/)?$/i.test(pathname)) continue;
+
+  html = normalizeCanonical(html, pathname);
+  fs.writeFileSync(filePath, html, 'utf8');
   urls.add(new URL(pathname, `${SITE_URL}/`).href);
 }
 

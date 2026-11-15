@@ -1,0 +1,46 @@
+diff --git a/build.mjs b/build.mjs
+--- a/build.mjs
++++ b/build.mjs
+@@ -3,2 +3,3 @@
+ import { fileURLToPath } from 'node:url';
++import { SITE_URL as CONFIGURED_SITE_URL } from './site.config.mjs';
+ const __dirname=path.dirname(fileURLToPath(import.meta.url));
+@@ -10,3 +11,3 @@
+ fs.cpSync(path.join(root,'public'),path.join(dist,'assets'),{recursive:true});
+-const SITE_URL=(process.env.SITE_URL||'').replace(/\/$/,'');
++const SITE_URL=CONFIGURED_SITE_URL.replace(/\/$/,'');
+ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+@@ -27,2 +28,17 @@
+  return `<!doctype html><html lang="uk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="theme-color" content="#176b54"><title>${esc(title)}</title><meta name="description" content="${esc(description)}"><meta name="robots" content="index,follow,max-image-preview:large"><meta property="og:locale" content="uk_UA"><meta property="og:site_name" content="Розрахуй"><meta property="og:type" content="website"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(description)}">${og}${SITE_URL?`<meta property="og:image" content="${SITE_URL}/assets/social-card.svg"><meta name="twitter:card" content="summary_large_image">`:''}${canon}${kw}<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"><link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/assets/site.css">${extraHead}</head><body>${header(active)}${body}${footer()}<script src="/assets/app.js" defer></script></body></html>`;
++}
++function copyStaticTree(sourceDir,targetDir){
++ if(!fs.existsSync(sourceDir))return;
++ for(const entry of fs.readdirSync(sourceDir,{withFileTypes:true})){
++  if(entry.name.startsWith('.'))continue;
++  const source=path.join(sourceDir,entry.name);
++  const target=path.join(targetDir,entry.name);
++  if(entry.isDirectory()){
++   fs.mkdirSync(target,{recursive:true});
++   copyStaticTree(source,target);
++  }else if(entry.isFile()){
++   if(fs.existsSync(target))throw new Error(`Static content conflicts with generated file: ${path.relative(root,target)}`);
++   fs.copyFileSync(source,target);
++  }
++ }
+ }
+@@ -168,11 +184,7 @@
+ writePage('/404.html',base('Сторінку не знайдено | Розрахуй','Такої сторінки немає. Перейдіть до каталогу онлайн-калькуляторів українською.',`<main id="main"><div class="container not-found"><div class="eyebrow" style="color:var(--green)">Помилка 404</div><h1>Сторінку не знайдено</h1><p class="muted">Можливо, адресу змінено або сторінку видалено.</p><a class="button" href="/calculators/">Переглянути калькулятори →</a></div></main>`));
+-fs.writeFileSync(path.join(dist,'robots.txt'),'User-agent: *\nAllow: /\n');
+ fs.writeFileSync(path.join(dist,'manifest.webmanifest'),JSON.stringify({name:'Розрахуй — онлайн-калькулятори українською',short_name:'Розрахуй',lang:'uk',start_url:'/',display:'standalone',background_color:'#f5f8f5',theme_color:'#176b54',icons:[{src:'/assets/favicon.svg',sizes:'any',type:'image/svg+xml'}]},null,2));
+-if(SITE_URL){
+- const urls=['/', '/calculators/', '/about/', '/privacy/',...Object.keys(categories).map(k=>`/category/${k}/`),...calculators.map(c=>c.url)];
+- const xml=`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.map(u=>`<url><loc>${SITE_URL}${u}</loc></url>`).join('')}</urlset>`;
+- fs.writeFileSync(path.join(dist,'sitemap.xml'),xml);
+- fs.appendFileSync(path.join(dist,'robots.txt'),`Sitemap: ${SITE_URL}/sitemap.xml\n`);
+-}
++copyStaticTree(path.join(root,'src','pages'),dist);
++copyStaticTree(path.join(root,'src','articles'),path.join(dist,'articles'));
++await import('./sitemap.mjs');
+ console.log(`Built ${calculators.length} calculator pages, ${Object.keys(categories).length} category pages and supporting pages.`);
+-console.log(SITE_URL?'Sitemap generated.':'No SITE_URL provided; sitemap will be generated when SITE_URL is set.');
++console.log(`Production domain: ${SITE_URL}`);

@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "node --input-type=module -e \"process.env.SITE_URL='https://agrocalculator.pp.ua'; await import('./build.mjs')\" && node sitemap.mjs",
+    "build": "node build.mjs",
     "serve": "node serve.mjs"
   },
   "engines": {
